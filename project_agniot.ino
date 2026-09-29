@@ -4,7 +4,7 @@
 // Define pin numbers
 const int flameAnalogPin = A0;  // ESP-12E only has 1 analog pin (A0)
 const int ledRedPin = 5;  // GPIO 5 (D1)
-const int ledYellowPin = 4; // GPIO 4 (D2)
+const int ledYellowPin = 0; // GPIO 0 (D3)
 const int ledGreenPin = 14; // GPIO 14 (D5)
 const int servoPin = 12; // GPIO 12 (D6)
 
