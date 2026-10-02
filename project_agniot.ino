@@ -1,97 +1,91 @@
-// Include Servo.h from Servo library by Michael Margolis
-#include <Servo.h>
+const int flameSensorPin = D1;
 
-// Define pin numbers
-const int flameAnalogPin = A0;  // ESP-12E only has 1 analog pin (A0)
-const int ledRedPin = 5;  // GPIO 5 (D1)
-const int ledYellowPin = 0; // GPIO 0 (D3)
-const int ledGreenPin = 14; // GPIO 14 (D5)
-const int servoPin = 12; // GPIO 12 (D6)
+const int ledMerah = D2;
+const int ledHijau = D5;
+const int ledKuning = D6;
 
-// Intensity Threshold (%)
-const int yellowThresholdPercent = 30;
-const int redThresholdPercent = 100;
+const int buzzer = D7;
 
-// Servo object
-Servo fireServo;
+// Api harus terus terdeteksi selama 2 detik
+const unsigned long waktuApi = 2000;
 
-// Track previous state to prevent repeating Servo and Serial calls
-enum FireState{SAFE, WARNING_YELLOW, DANGER_RED};
-FireState lastState = SAFE;
+unsigned long waktuMulaiApi = 0;
+
+bool apiSedangTerdeteksi = false;
 
 void setup() {
-  // Initialize serial communication
   Serial.begin(115200);
-  
-  // Set the pin modes
-  pinMode(flameAnalogPin, INPUT);  // Flame sensor input
-  pinMode(ledRedPin, OUTPUT);  // Red LED output
-  pinMode(ledYellowPin, OUTPUT); // Yellow LED output
-  pinMode(ledGreenPin, OUTPUT); // Green LED output
 
-  // Attach servo to GPIO pin and set initial position
-  fireServo.attach(servoPin);
-  fireServo.write(0); //Safe position: 0 degrees
+  pinMode(flameSensorPin, INPUT);
 
-  // Default initial state: Green LED ON
-  digitalWrite(ledRedPin, LOW);
-  digitalWrite(ledYellowPin, LOW);
-  digitalWrite(ledGreenPin, HIGH);
+  pinMode(ledMerah, OUTPUT);
+  pinMode(ledHijau, OUTPUT);
+  pinMode(ledKuning, OUTPUT);
+
+  pinMode(buzzer, OUTPUT);
+
+  // Kondisi awal
+  digitalWrite(ledHijau, HIGH);
+  digitalWrite(ledKuning, LOW);
+  digitalWrite(ledMerah, LOW);
+
+  // Buzzer aktif LOW, jadi HIGH = mati
+  digitalWrite(buzzer, HIGH);
 }
 
 void loop() {
-  // Read analog value from ESP-12E 
-  const int rawValue = analogRead(flameAnalogPin);
 
-  //Convert ADC to percentage (0 to 1023 -> 0% to 100%)
-  int intensityPercent = map(rawValue, 0, 1023, 0, 100);
-  intensityPercent = constrain(intensityPercent, 0, 100);
+  int flame = digitalRead(flameSensorPin);
 
-  // State Evaluation
-  if (intensityPercent >= redThresholdPercent) {
-    // Turn on the red LED (DANGER)
-    digitalWrite(ledRedPin, HIGH);
-    digitalWrite(ledYellowPin, LOW);
-    digitalWrite(ledGreenPin, LOW);
+  // =================================
+  // API TERDETEKSI
+  // =================================
+  if (flame == LOW) {
 
-    if (lastState != DANGER_RED) {
-      lastState = DANGER_RED;
-      fireServo.write(90); // Rotate servo to 90 degrees
-      Serial.println("Flame detected! Red LED ON");
+    // Baru pertama kali mendeteksi api
+    if (!apiSedangTerdeteksi) {
+
+      apiSedangTerdeteksi = true;
+
+      waktuMulaiApi = millis();
+
+      Serial.println("Api mulai terdeteksi!");
+
+      // LED kuning sebagai peringatan
+      digitalWrite(ledHijau, LOW);
+      digitalWrite(ledKuning, HIGH);
+      digitalWrite(ledMerah, LOW);
+
+      // Buzzer aktif LOW
+      digitalWrite(buzzer, LOW);
     }
-  } 
-  else if (intensityPercent >= yellowThresholdPercent) {
-    // Turn on the yellow LED (warning state)
-    digitalWrite(ledRedPin, LOW);
-    digitalWrite(ledYellowPin, HIGH);
-    digitalWrite(ledGreenPin, LOW);
 
-    if (lastState != WARNING_YELLOW) {
-      lastState = WARNING_YELLOW;
-      fireServo.write(0); // Rotate servo to 0 degrees
-      Serial.println("Medium fire warning!! Yellow LED ON");
-      
+    // Jika api terus terdeteksi selama 2 detik
+    if (millis() - waktuMulaiApi >= waktuApi) {
+
+      digitalWrite(ledKuning, LOW);
+      digitalWrite(ledMerah, HIGH);
+
+      Serial.println("Api terus terdeteksi! LED MERAH ON");
     }
   }
+
+  // =================================
+  // API TIDAK TERDETEKSI
+  // =================================
   else {
-    // Turn on the green LED (safe state)
-    digitalWrite(ledRedPin, LOW);
-    digitalWrite(ledYellowPin, LOW);
-    digitalWrite(ledGreenPin, HIGH);
 
-    if (lastState != SAFE) {
-      lastState = SAFE;
-      fireServo.write(0); // Reset servo to 0 degrees
-      Serial.println("It is safe for now. Green LED ON");
-    }
+    apiSedangTerdeteksi = false;
+
+    digitalWrite(ledHijau, HIGH);
+    digitalWrite(ledKuning, LOW);
+    digitalWrite(ledMerah, LOW);
+
+    // Buzzer aktif LOW → HIGH = mati
+    digitalWrite(buzzer, HIGH);
+
+    Serial.println("Tidak ada api.");
   }
-  
-  //Debugging serial output
-  Serial.println("Raw ADC (A0): ");
-  Serial.println(rawValue);
-  Serial.println(" | Intensity: ");
-  Serial.println(intensityPercent);
-  Serial.println("%");
 
-  delay(100);  // Delay to make the reading stable
+  delay(50);
 }
