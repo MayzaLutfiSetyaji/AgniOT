@@ -1,3 +1,4 @@
+
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
@@ -92,6 +93,9 @@ void reconnect() {
   }
 }
 
+unsigned long waktuMulaiApi = 0;
+bool apiSedangTerdeteksi = false;
+
 void setup() {
   Serial.begin(115200);
 
@@ -123,7 +127,9 @@ void loop() {
     reconnect();
   }
   client.loop();
+}
 
+void loop() {
   int flame = digitalRead(flameSensorPin);
 
   // =================================
